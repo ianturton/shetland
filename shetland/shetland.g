@@ -1,7 +1,7 @@
 !start: command+
 
 !command: "list"
-       | "save" FILENAME
+       | "save" FILENAME [CNAME]
        | "open" FILENAME
        | "info" CNAME
 

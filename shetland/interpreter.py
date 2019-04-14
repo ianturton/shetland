@@ -1,9 +1,13 @@
 import os
 from lark import Lark, UnexpectedInput
-from osgeo import ogr
+from osgeo import ogr, gdal
 
 
 class Interpreter:
+    drivers = {
+        "shp": "ESRI Shapefile", "gpkg": "GPKG"
+    }
+
     def __init__(self, file="shetland.g"):
         __location__ = os.path.realpath(
             os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -11,6 +15,8 @@ class Interpreter:
             grammar = f.read()
 
         self.parser = Lark(grammar)
+        ogr.UseExceptions()
+        gdal.UseExceptions()
 
     def run_instruction(self, t):
         if t.data == 'command':
@@ -89,11 +95,26 @@ class Interpreter:
 
     def ogr_save(self, *args):
         filename = args[0].value
+        idx = filename.rfind(".")
+        ext = filename[idx + 1:]
         if len(args) > 1:
             layername = args[1]
         else:
-            layername = None
-        datasource = ogr.Open(filename, 1)
+            layername = filename[:idx]
+
+        # look up driver type based on extension
+        driverName = self.drivers.get(ext)
+        drv = ogr.GetDriverByName(driverName)
+        if os.path.exists(filename):
+            drv.DeleteDataSource(filename)
+
+        datasource = drv.CreateDataSource(filename)
+        if datasource is not None:
+            inlayer = self.dataSource.GetLayerByName(layername)
+            datasource.CopyLayer(inlayer, new_name=layername)
+            datasource = None  # save!
+        else:
+            print("unable to save to %s" % filename)
 
     def run(self, program):
         parse_tree = self.parser.parse(program)
