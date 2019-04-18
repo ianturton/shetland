@@ -7,6 +7,7 @@ class Interpreter:
     drivers = {
         "shp": "ESRI Shapefile", "gpkg": "GPKG"
     }
+    vars = {}
 
     def __init__(self, file="shetland.g"):
         __location__ = os.path.realpath(
@@ -19,9 +20,15 @@ class Interpreter:
         gdal.UseExceptions()
 
     def run_instruction(self, t):
+        print(t)
         if t.data == 'command':
             args = t.children
-            # print(args)
+            for i, c in enumerate(args):
+                print(str(i)+" arg: "+c+" "+c.type)
+            if (args[0].type == 'VARIABLE'):
+                self.vars[args[0].value] = args[2]  # skip =
+                return
+
             if(len(args) >= 2):  # commands with filename
                 {
                     'open': self.ogr_open,
@@ -45,7 +52,12 @@ class Interpreter:
             raise SyntaxError('Unknown instruction: %s' % t.data)
 
     def ogr_open(self, *args):
-        filename = args[0].value
+        if args[0].type == 'FILENAME':
+            filename = args[0].value
+        elif args[0].type == 'VARIABLE':
+            print(self.vars)
+            filename = self.vars.get(args[0].value).value
+        filename = filename.strip('"').strip("'")
         self.dataSource = ogr.Open(filename, 0)
         if self.dataSource is None:
             print('Could not open %s' % (filename))
