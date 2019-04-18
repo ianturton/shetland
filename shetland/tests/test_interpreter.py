@@ -20,7 +20,7 @@ class TestInterprester:
     def test_list_layers(self):
         code = """open /home/ian/Data/states/states.shp
         list"""
-        assert self.run(code) == True
+        assert self.run(code) is True
 
     def test_list_info(self):
         code = """open /home/ian/Data/states/states.%s
@@ -33,4 +33,4 @@ class TestInterprester:
         code = """open /home/ian/Data/states/states.shp
             save /tmp/ian.shp states
             """
-        assert self.run(code) == True
+        assert self.run(code) is True
