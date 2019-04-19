@@ -1,9 +1,11 @@
 import os
+
 from pathlib import Path
 import readline
 import atexit
 from .completer import Completer
 from lark import Lark, UnexpectedInput
+from lark.lexer import Token
 from osgeo import ogr, gdal
 
 
@@ -30,8 +32,7 @@ class Interpreter:
         self.setup()
 
     def setup(self):
-        """ Initialization of third-party libraries
-
+        """
         Setting interpreter history.
         Setting appropriate completer function.
 
@@ -53,6 +54,30 @@ class Interpreter:
         # readline.set_completer_delims(' \t\n;')
         readline.parse_and_bind("tab: complete")
 
+    def assignVar(self, name, val):
+        # print("setting "+name+" to "+val)
+        self.vars[name] = val
+
+    def parseList(self, token):
+        print(token)
+        val = token.value
+        list_ = []
+        if val.startswith("[") and val.endswith("]"):
+            for v in val.lstrip("[").rstrip("]").split(","):
+                if v.startswith("'") or v.startswith('"'):
+                    list_.append(Token(type_="CNAME",
+                                       value=v.strip("'").strip('"')))
+                else:
+                    list_.append(Token(type_="VARIABLE",
+                                       value=v))
+        elif "*" in val:  # a file glob
+            p = Path('.')
+            list_ = [Token(value=l, type_="FILENAME")
+                     for l in list(p.glob(val))]
+        else:  # just a single file?
+            list_ = [Token(value=val)]
+        return list_
+
     def run_instruction(self, t):
         # print(t)
         args = t.children
@@ -60,7 +85,7 @@ class Interpreter:
             # for i, c in enumerate(args):
             # print(str(i)+" arg: "+c+" "+c.type)
             if (args[0].type == 'VARIABLE'):
-                self.vars[args[0].value] = args[2]  # skip =
+                self.assignVar(args[0].value, args[2])  # skip =
                 return True
 
             if(len(args) >= 2):  # commands with filename
@@ -78,10 +103,20 @@ class Interpreter:
                 }[args[0]]()
         elif t.data == 'exec':
             res = self.exec_hist(args[1])
-        elif t.data == 'repeat':
-            count, block = t.children
-            for i in range(int(count)):
+        elif t.data == 'for':
+            print(t.children)
+            args = [t for t in t.children if (not type(t) == Token) or
+                    (type(t) == Token and t.type != 'NEWLINE')]
+            variable = args[1]
+            list = self.parseList(args[3])
+            block = args[4]
+            res = False
+            for i in list:
+                self.assignVar(variable, i)
                 res = self.run_instruction(block)
+                if not res:
+                    break
+            return res
         elif t.data == 'code_block':
             for cmd in t.children:
                 res = self.run_instruction(cmd)
@@ -109,11 +144,23 @@ class Interpreter:
 
     def print_(self, *args):
         for arg in args:
-            var = arg.value
-            if var in self.vars:
-                print(self.vars.get(var).value)
+            if type(arg) == Token:
+                if (arg.type == 'VARIABLE'):
+                    var = arg.value
+                    # print("looking up value of "+var)
+                    if var in self.vars:
+                        resp = self.vars.get(var)
+                        if type(resp) == Token:
+                            print(resp.value)
+                        else:
+                            print(resp)
+                    else:
+                        raise SyntaxError('Undefined variable %s' % var)
+                else:
+                    print(arg.value)
             else:
-                raise SyntaxError('Undefined variable %s' % var)
+                print(arg)
+        return True
 
     def getFileName(self, arg):
         if arg.value in self.vars:

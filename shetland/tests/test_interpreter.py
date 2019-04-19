@@ -47,3 +47,17 @@ class TestInterprester:
     def test_variables(self):
         code = """a=/tmp/ian.shp"""
         assert self.run(code) is True
+
+    def test_for_loop_glob(self):
+        code = """for i in **/data/* {
+            print i
+        }"""
+        assert self.run(code) is True
+
+    def test_for_loop_list(self):
+        code = """b="fred.shp"
+        for i in ["a",b,"Color"] {
+            print i
+        }
+        """
+        assert self.run(code) is True
