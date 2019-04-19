@@ -1,17 +1,27 @@
-!start: command+
+!start      : command+
 
-!command: "list"
-       | "save" (FILENAME|VARIABLE) [(CNAME | VARIABLE)]
-       | (VARIABLE "=" FILENAME)
-       | (VARIABLE "=")? "open" (FILENAME|VARIABLE)
-       | "info" (CNAME|VARIABLE)
+!command    : "list"
+            | "save" ATOM [ATOM]
+            | (VARIABLE "=" ATOM )
+            | (VARIABLE "=")? "open" ATOM
+            | (VARIABLE "=")? "layer" ATOM
+            | "info" ATOM
+            | "print" VARIABLE
+            | "history"
+            | "!" INTEGER -> exec
 
-VARIABLE    : (LETTER)("_"|LETTER)*
-FILENAME    : ("\""|"'") NAME "." EXTENSION ("\""|"'") 
+ATOM        : VARIABLE
+            | FILENAME
+            | CNAME
+
+VARIABLE    : (LETTER)("_"|LETTER|DIGIT)*
+FILENAME    : ("\""|"'")? NAME "." EXTENSION ("\""|"'")? 
 EXTENSION   : "shp"|"gpkg"
 NAME        : ["/"|"."]* (CNAME ["/"])+
 
+%import common.INT -> INTEGER
 %import common.LETTER
+%import common.DIGIT
 %import common.CNAME
 %import common.WS
 %ignore WS

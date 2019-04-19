@@ -1,4 +1,7 @@
 import os
+import readline
+import atexit
+from .completer import Completer
 from lark import Lark, UnexpectedInput
 from osgeo import ogr, gdal
 
@@ -8,6 +11,8 @@ class Interpreter:
         "shp": "ESRI Shapefile", "gpkg": "GPKG"
     }
     vars = {}
+    history_file = os.path.join(os.path.expanduser('~'), ".shetland_hist")
+    history_length = 1000
 
     def __init__(self, file="shetland.g"):
         __location__ = os.path.realpath(
@@ -18,11 +23,36 @@ class Interpreter:
         self.parser = Lark(grammar)
         ogr.UseExceptions()
         gdal.UseExceptions()
+        self.setup()
+
+    def setup(self):
+        """ Initialization of third-party libraries
+
+        Setting interpreter history.
+        Setting appropriate completer function.
+
+        :return:
+        """
+        if not os.path.exists(self.history_file):
+            open(self.history_file, 'a+').close()
+
+        readline.read_history_file(self.history_file)
+        readline.set_history_length(self.history_length)
+        atexit.register(readline.write_history_file, self.history_file)
+
+        readline.parse_and_bind('set enable-keypad on')
+
+        # TODO find out how to get this list from the grammar
+        words = "open", "save", "list", "info", "history", "layer", "print"
+        completer = Completer(words)
+        readline.set_completer(completer.complete)
+        # readline.set_completer_delims(' \t\n;')
+        readline.parse_and_bind("tab: complete")
 
     def run_instruction(self, t):
         print(t)
+        args = t.children
         if t.data == 'command':
-            args = t.children
             for i, c in enumerate(args):
                 print(str(i)+" arg: "+c+" "+c.type)
             if (args[0].type == 'VARIABLE'):
@@ -34,11 +64,16 @@ class Interpreter:
                     'open': self.ogr_open,
                     'save': self.ogr_save,
                     'info': self.ogr_info,
+                    'print': self.print_,
                 }[args[0]](*args[1:])
             else:
+                print("no args "+args[0])
                 res = {
                     'list': self.ogr_list,
+                    'history': self.history,
                 }[args[0]]()
+        elif t.data == 'exec':
+            res = self.exec_hist(args[1])
         elif t.data == 'repeat':
             count, block = t.children
             for i in range(int(count)):
@@ -52,15 +87,35 @@ class Interpreter:
             raise SyntaxError('Unknown instruction: %s' % t.data)
         return res
 
-    def getFileName(self, arg):
-        if arg.type == 'FILENAME':
-            filename = arg.value
-        elif arg.type == 'VARIABLE':
-            if arg.value in self.vars:
-                filename = self.vars.get(arg.value).value
+    def history(self):
+        length = readline.get_current_history_length()
+        for i in range(1, length):
+            print("%d: %s" % (i, readline.get_history_item(i)))
+        return True
+
+    def exec_hist(self, *args):
+        val = int(args[0].value)
+        cmd = readline.get_history_item(val)
+        if cmd:
+            length = readline.get_current_history_length() - 1
+            readline.replace_history_item(length, cmd)
+            return self.run(cmd)
+        else:
+            raise SyntaxError("Unknown history command %s" % val)
+
+    def print_(self, *args):
+        for arg in args:
+            var = arg.value
+            if var in self.vars:
+                print(self.vars.get(var).value)
             else:
-                raise SyntaxError('Undefined variable "%s"' % arg.value)
-        filename = filename.strip('"').strip("'")
+                raise SyntaxError('Undefined variable %s' % var)
+
+    def getFileName(self, arg):
+        if arg.value in self.vars:
+            filename = self.vars.get(arg.value).value
+        else:
+            filename = arg.strip('"').strip("'")
         return filename
 
     def ogr_open(self, *args):
@@ -147,6 +202,7 @@ class Interpreter:
     def run(self, program):
         parse_tree = self.parser.parse(program)
         # print(parse_tree.pretty())
+        res = False
         for inst in parse_tree.children:
             res = self.run_instruction(inst)
         return res
@@ -164,7 +220,7 @@ def main():
                       u.get_context(code), u.line, u.column)
             except Exception as e:
                 print(e)
-        except EOFError:
+        except (EOFError, KeyboardInterrupt):
             break
 
 
