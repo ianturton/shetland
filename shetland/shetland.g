@@ -16,8 +16,8 @@ ATOM        : VARIABLE
 
 VARIABLE    : (LETTER)("_"|LETTER|DIGIT)*
 FILENAME    : ("\""|"'")? NAME "." EXTENSION ("\""|"'")? 
-EXTENSION   : "shp"|"gpkg"
-NAME        : ["/"|"."]* (CNAME ["/"])+
+EXTENSION   : "shp"|"gpkg"|"geojson"|"json"
+NAME        : ["/"|"./"|"../"]? (CNAME ["/"])+
 
 %import common.INT -> INTEGER
 %import common.LETTER

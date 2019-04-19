@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import readline
 import atexit
 from .completer import Completer
@@ -8,7 +9,10 @@ from osgeo import ogr, gdal
 
 class Interpreter:
     drivers = {
-        "shp": "ESRI Shapefile", "gpkg": "GPKG"
+        "shp": "ESRI Shapefile",
+        "gpkg": "GPKG",
+        "json": "GeoJSON",
+        "geojson": "GeoJSON",
     }
     vars = {}
     history_file = os.path.join(os.path.expanduser('~'), ".shetland_hist")
@@ -50,11 +54,11 @@ class Interpreter:
         readline.parse_and_bind("tab: complete")
 
     def run_instruction(self, t):
-        print(t)
+        # print(t)
         args = t.children
         if t.data == 'command':
-            for i, c in enumerate(args):
-                print(str(i)+" arg: "+c+" "+c.type)
+            # for i, c in enumerate(args):
+            # print(str(i)+" arg: "+c+" "+c.type)
             if (args[0].type == 'VARIABLE'):
                 self.vars[args[0].value] = args[2]  # skip =
                 return True
@@ -116,6 +120,10 @@ class Interpreter:
             filename = self.vars.get(arg.value).value
         else:
             filename = arg.strip('"').strip("'")
+
+        p = Path(filename)
+        print("filename = %s " % p)
+        filename = str(p.resolve())
         return filename
 
     def ogr_open(self, *args):
