@@ -59,7 +59,7 @@ class Interpreter:
         self.vars[name] = val
 
     @classmethod
-    def parseList(token):
+    def parseList(cls, token):
         val = token.value
         list_ = []
         if val.startswith("[") and val.endswith("]"):
@@ -128,7 +128,7 @@ class Interpreter:
         return res
 
     @classmethod
-    def history():
+    def history(cls):
         length = readline.get_current_history_length()
         for i in range(1, length):
             print("%d: %s" % (i, readline.get_history_item(i)))
