@@ -59,7 +59,6 @@ class Interpreter:
         self.vars[name] = val
 
     def parseList(self, token):
-        print(token)
         val = token.value
         list_ = []
         if val.startswith("[") and val.endswith("]"):
@@ -96,7 +95,6 @@ class Interpreter:
                     'print': self.print_,
                 }[args[0]](*args[1:])
             else:
-                print("no args "+args[0])
                 res = {
                     'list': self.ogr_list,
                     'history': self.history,
@@ -104,19 +102,7 @@ class Interpreter:
         elif t.data == 'exec':
             res = self.exec_hist(args[1])
         elif t.data == 'for':
-            print(t.children)
-            args = [t for t in t.children if (not type(t) == Token) or
-                    (type(t) == Token and t.type != 'NEWLINE')]
-            variable = args[1]
-            list = self.parseList(args[3])
-            block = args[4]
-            res = False
-            for i in list:
-                self.assignVar(variable, i)
-                res = self.run_instruction(block)
-                if not res:
-                    break
-            return res
+            res = self.do_for(args)
         elif t.data == 'code_block':
             for cmd in t.children:
                 res = self.run_instruction(cmd)
@@ -124,6 +110,20 @@ class Interpreter:
             print("Instruction "+t.data)
         else:
             raise SyntaxError('Unknown instruction: %s' % t.data)
+        return res
+
+    def do_for(self, arg):
+        args = [t for t in arg if (not type(t) == Token) or
+                (type(t) == Token and t.type != 'NEWLINE')]
+        variable = args[1]
+        list = self.parseList(args[3])
+        block = args[4]
+        res = False
+        for i in list:
+            self.assignVar(variable, i)
+            res = self.run_instruction(block)
+            if not res:
+                break
         return res
 
     def history(self):
@@ -166,10 +166,10 @@ class Interpreter:
         if arg.value in self.vars:
             filename = self.vars.get(arg.value).value
         else:
-            filename = arg.strip('"').strip("'")
+            filename = arg
 
+        filename = filename.strip('"').strip("'")
         p = Path(filename)
-        print("filename = %s " % p)
         filename = str(p.resolve())
         return filename
 
@@ -177,7 +177,6 @@ class Interpreter:
         filename = self.getFileName(args[0])
         self.dataSource = ogr.Open(filename, 0)
         if self.dataSource is None:
-            print('Could not open %s' % (filename))
             raise IOError("Could not open %s" % (filename))
         else:
             print('Opened %s' % (filename))
@@ -265,18 +264,39 @@ class Interpreter:
 
 def main():
     shetland = Interpreter("shetland.g")
+    code = ""
+    block = False
+    cmd = ""
+    prompt = "> "
     while True:
         try:
-            code = input('> ')
-            try:
-                shetland.run(code)
-            except UnexpectedInput as u:
-                print("Unexpected input:\n" +
-                      u.get_context(code), u.line, u.column)
-            except Exception as e:
-                print(e)
+            code = input(prompt)
+            if code.strip().endswith("{"):
+                # handle code block lines
+                block = True
+                prompt = "... "
+                cmd = code.strip()+"\n"
+                continue
+            if block:
+                cmd += code.strip()+"\n"
+                if code.endswith("}"):
+                    prompt = "> "
+                    try:
+                        shetland.run(cmd)
+                    except UnexpectedInput as u:
+                        print("Unexpected input:\n" +
+                              u.get_context(code), u.line, u.column)
+            else:
+                try:
+                    shetland.run(code)
+                except UnexpectedInput as u:
+                    print("Unexpected input:\n" +
+                          u.get_context(code), u.line, u.column)
+
         except (EOFError, KeyboardInterrupt):
             break
+        except Exception as e:
+            print(e)
 
 
 if __name__ == '__main__':

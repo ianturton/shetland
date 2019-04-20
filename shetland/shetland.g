@@ -15,7 +15,7 @@ ATOM        : VARIABLE
             | FILENAME
             | CNAME
             | ("\""|"'")? CNAME ("\""|"'")?
-code_block  : "{" NEWLINE* (command|NEWLINE)+ NEWLINE* "}"
+code_block  : "{"  (command)+  "}"
 LIST        : "[" ATOM ("," ATOM)+  "]" | GLOB
 GLOB        : (LETTER|DIGIT|"*"|"/"|".")+ 
 VARIABLE    : (LETTER)("_"|LETTER|DIGIT)*
@@ -27,7 +27,5 @@ NAME        : ["/"|"./"|"../"]? (CNAME ["/"])+
 %import common.LETTER
 %import common.DIGIT
 %import common.CNAME
-%import common.WS_INLINE
-%ignore WS_INLINE
-%import common.NEWLINE
-%ignore NEWLINE
+%import common.WS
+%ignore WS

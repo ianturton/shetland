@@ -48,6 +48,18 @@ class TestInterprester:
         code = """a=/tmp/ian.shp"""
         assert self.run(code) is True
 
+    def test_variable_filename(self):
+        """
+        make sure that the " are stripped from the file name
+        when it is fetched from the variable
+        """
+        code = """a="ian.shp"
+            open a
+        """
+        with pytest.raises(IOError) as ex:
+            self.run(code)
+        assert '"' not in str(ex.value)
+
     def test_for_loop_glob(self):
         code = """for i in **/data/* {
             print i
