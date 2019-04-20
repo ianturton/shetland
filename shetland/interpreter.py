@@ -58,7 +58,8 @@ class Interpreter:
         # print("setting "+name+" to "+val)
         self.vars[name] = val
 
-    def parseList(self, token):
+    @classmethod
+    def parseList(token):
         val = token.value
         list_ = []
         if val.startswith("[") and val.endswith("]"):
@@ -113,20 +114,21 @@ class Interpreter:
         return res
 
     def do_for(self, arg):
-        args = [t for t in arg if (not type(t) == Token) or
-                (type(t) == Token and t.type != 'NEWLINE')]
+        args = [t for t in arg if not isinstance(t, Token) or
+                (isinstance(t, Token) and t.type != 'NEWLINE')]
         variable = args[1]
-        list = self.parseList(args[3])
+        list_ = self.parseList(args[3])
         block = args[4]
         res = False
-        for i in list:
+        for i in list_:
             self.assignVar(variable, i)
             res = self.run_instruction(block)
             if not res:
                 break
         return res
 
-    def history(self):
+    @classmethod
+    def history():
         length = readline.get_current_history_length()
         for i in range(1, length):
             print("%d: %s" % (i, readline.get_history_item(i)))
@@ -144,13 +146,13 @@ class Interpreter:
 
     def print_(self, *args):
         for arg in args:
-            if type(arg) == Token:
+            if isinstance(arg, Token):
                 if (arg.type == 'VARIABLE'):
                     var = arg.value
                     # print("looking up value of "+var)
                     if var in self.vars:
                         resp = self.vars.get(var)
-                        if type(resp) == Token:
+                        if isinstance(resp, Token):
                             print(resp.value)
                         else:
                             print(resp)
