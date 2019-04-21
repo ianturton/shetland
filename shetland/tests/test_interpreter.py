@@ -1,18 +1,23 @@
 import pytest
 import os
 from shetland.interpreter import Interpreter
+import lark
 
 
-class TestInterprester:
+class TestInterpreter:
 
     THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
     def setup_method(self, method):
-        interpreter = Interpreter()
-        self.drivers = interpreter.drivers
-        self.run = interpreter.run
+        self.interpreter = Interpreter()
+        self.drivers = self.interpreter.drivers
+        self.run = self.interpreter.run
         self.data_path = os.path.normpath(
             os.path.join(self.THIS_DIR, os.pardir, 'tests/data/'))
+
+    def test_unknown(self):
+        with pytest.raises(lark.exceptions.ParseError):
+            self.run("unknown")
 
     def test_open(self):
         code = "open '%s/states.%s'"
@@ -66,10 +71,27 @@ class TestInterprester:
         }"""
         assert self.run(code) is True
 
+    def test_for_loop_one(self):
+        code = """for i in %s/states.shp {
+            print i
+        }"""
+        assert self.run(code % self.data_path) is True
+
     def test_for_loop_list(self):
         code = """b="fred.shp"
         for i in ["a",b,"Color"] {
             print i
         }
         """
+        assert self.run(code) is True
+
+    def test_history(self):
+        # code = """history"""
+        # assert self.run(code) is True
+        code = """a=/tmp/ian.shp"""
+        assert self.run(code) is True
+        code = """!!"""
+        assert self.run(code) is True
+        val = self.interpreter.getHistoryLength() - 2
+        code = "!%d" % val
         assert self.run(code) is True

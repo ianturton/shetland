@@ -29,14 +29,13 @@ class Interpreter:
         self.parser = Lark(grammar)
         ogr.UseExceptions()
         gdal.UseExceptions()
-        self.setup()
+        self.__setup()
 
-    def setup(self):
+    def __setup(self):
         """
         Setting interpreter history.
         Setting appropriate completer function.
 
-        :return:
         """
         if not os.path.exists(self.history_file):
             open(self.history_file, 'a+').close()
@@ -55,11 +54,25 @@ class Interpreter:
         readline.parse_and_bind("tab: complete")
 
     def assignVar(self, name, val):
+        """
+        Assign a value to a variable
+        """
         # print("setting "+name+" to "+val)
         self.vars[name] = val
 
     @classmethod
-    def parseList(cls, token):
+    def getHistoryLength(cls):
+        """
+        only really needed for testing
+        """
+        return readline.get_current_history_length()
+
+    @classmethod
+    def __parseList(cls, token):
+        """
+        Break up a list token or a filename with possible
+        globbing and return a python list for processing
+        """
         val = token.value
         list_ = []
         if val.startswith("[") and val.endswith("]"):
@@ -75,10 +88,14 @@ class Interpreter:
             list_ = [Token(value=l, type_="FILENAME")
                      for l in list(p.glob(val))]
         else:  # just a single file?
-            list_ = [Token(value=val)]
+            list_ = [Token(value=val, type_="CNAME")]
         return list_
 
     def run_instruction(self, t):
+        """
+        Main entry point to the interpreter, takes a tree of
+        Tokens from the parser and carries out the instructions
+        """
         # print(t)
         args = t.children
         if t.data == 'command':
@@ -102,22 +119,25 @@ class Interpreter:
                 }[args[0]]()
         elif t.data == 'exec':
             res = self.exec_hist(args[1])
+        elif t.data == 'repeat_hist':
+            res = self.exec_hist("last")
         elif t.data == 'for':
-            res = self.do_for(args)
+            res = self.__do_for(args)
         elif t.data == 'code_block':
             for cmd in t.children:
                 res = self.run_instruction(cmd)
-        elif t.data == 'instruction':
-            print("Instruction "+t.data)
         else:
             raise SyntaxError('Unknown instruction: %s' % t.data)
         return res
 
-    def do_for(self, arg):
+    def __do_for(self, arg):
+        """
+        Process a For token and execute the attached code block
+        """
         args = [t for t in arg if not isinstance(t, Token) or
                 (isinstance(t, Token) and t.type != 'NEWLINE')]
         variable = args[1]
-        list_ = self.parseList(args[3])
+        list_ = self.__parseList(args[3])
         block = args[4]
         res = False
         for i in list_:
@@ -129,13 +149,25 @@ class Interpreter:
 
     @classmethod
     def history(cls):
+        """
+        Print out the history file with reference numbers
+        """
         length = readline.get_current_history_length()
         for i in range(1, length):
             print("%d: %s" % (i, readline.get_history_item(i)))
         return True
 
     def exec_hist(self, *args):
-        val = int(args[0].value)
+        """
+        Execute a command from the history. If the user typed '!!' then
+        repeat the last command, if '!int' find that command in the list and
+        execute it.
+        TODO: implement '!prefix'
+        """
+        if(args[0] == "last"):
+            val = readline.get_current_history_length() - 2  # last cmd
+        else:
+            val = int(args[0].value)
         cmd = readline.get_history_item(val)
         if cmd:
             length = readline.get_current_history_length() - 1
@@ -145,6 +177,10 @@ class Interpreter:
             raise SyntaxError("Unknown history command %s" % val)
 
     def print_(self, *args):
+        """
+        Print out the values of a list of tokens - expanding variables if
+        present.
+        """
         for arg in args:
             if isinstance(arg, Token):
                 if (arg.type == 'VARIABLE'):
@@ -164,7 +200,11 @@ class Interpreter:
                 print(arg)
         return True
 
-    def getFileName(self, arg):
+    def __getFileName(self, arg):
+        """
+        Gets a filename from a token id it is a variable, strips quotes from
+        the result. Uses pathlib to resolve name.
+        """
         if arg.value in self.vars:
             filename = self.vars.get(arg.value).value
         else:
@@ -176,7 +216,10 @@ class Interpreter:
         return filename
 
     def ogr_open(self, *args):
-        filename = self.getFileName(args[0])
+        """
+        Open a spatial file (with an extension in the drivers dict).
+        """
+        filename = self.__getFileName(args[0])
         self.dataSource = ogr.Open(filename, 0)
         if self.dataSource is None:
             raise IOError("Could not open %s" % (filename))
@@ -186,6 +229,9 @@ class Interpreter:
             return True
 
     def ogr_list(self):
+        """
+        List the layers in the current datasource
+        """
         count = self.dataSource.GetLayerCount()
         print("%d layers" % count)
         layers = []
@@ -198,6 +244,10 @@ class Interpreter:
         return True
 
     def ogr_info(self, *args):
+        """
+        Get information about the named layer in the current datasource, if
+        there is another argument then print the full metadata.
+        """
         layername = args[0].value
         full = False
         if len(args) > 1:
@@ -227,12 +277,15 @@ class Interpreter:
             print("%s not found" % layername)
             return False
 
-    def ogr_save(self, *args):
-        filename = self.getFileName(args[0])
+    def ogr_save(self, fname, lname=None):
+        """
+        Save the named layer of the current layer in the file
+        """
+        filename = self.__getFileName(fname)
         idx = filename.rfind(".")
         ext = filename[idx + 1:]
-        if len(args) > 1:
-            layername = args[1]
+        if lname:
+            layername = lname
         else:
             layername = filename[:idx]
 
@@ -256,6 +309,9 @@ class Interpreter:
             return False
 
     def run(self, program):
+        """
+        parse & run the command(s) in the program
+        """
         parse_tree = self.parser.parse(program)
         # print(parse_tree.pretty())
         res = False

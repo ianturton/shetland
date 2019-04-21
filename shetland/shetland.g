@@ -9,6 +9,7 @@
             | "print" VARIABLE
             | "history"
             | "!" INTEGER -> exec
+            | "!!"        -> repeat_hist
             | "for" VARIABLE "in" LIST code_block -> for
 
 ATOM        : VARIABLE
