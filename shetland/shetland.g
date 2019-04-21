@@ -5,7 +5,7 @@
             | (VARIABLE "=" ATOM )
             | (VARIABLE "=")? "open" ATOM
             | (VARIABLE "=")? "layer" ATOM
-            | "info" ATOM
+            | "info" ATOM+
             | "print" VARIABLE
             | "history"
             | "!" INTEGER -> exec
