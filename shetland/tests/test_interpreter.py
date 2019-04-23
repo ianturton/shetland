@@ -1,5 +1,6 @@
 import pytest
 import os
+import readline
 from shetland.interpreter import Interpreter
 import lark
 
@@ -90,6 +91,7 @@ class TestInterpreter:
         # assert self.run(code) is True
         code = """a=/tmp/ian.shp"""
         assert self.run(code) is True
+        readline.write_history_file()
         code = """!!"""
         assert self.run(code) is True
         val = self.interpreter.getHistoryLength() - 2

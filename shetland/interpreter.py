@@ -57,8 +57,23 @@ class Interpreter:
         """
         Assign a value to a variable
         """
-        # print("setting "+name+" to "+val)
-        self.vars[name] = val
+        print("setting "+name+" to "+val)
+        if isinstance(val, Token):
+            if val.type == 'VARIABLE':
+                if val.value in self.vars:
+                    ret = self.vars.get(val.value)
+                else:
+                    raise SyntaxError('Undefined variable %s' % val.value)
+            elif val.type in ('ATOM', 'FILENAME', 'CNAME'):
+                ret = self.__getFileName(val)
+        # elif isinstance(val, Tree):
+            # process the tree and store the result in the var
+            # ret = self.run_instruction(val)
+
+        else:
+            ret = val
+
+        self.vars[name] = ret
 
     @classmethod
     def getHistoryLength(cls):
@@ -202,15 +217,22 @@ class Interpreter:
 
     def __getFileName(self, arg):
         """
-        Gets a filename from a token id it is a variable, strips quotes from
+        Gets a filename from a token id if it is a variable,
+        strips quotes from
         the result. Uses pathlib to resolve name.
         """
-        if arg.value in self.vars:
-            filename = self.vars.get(arg.value).value
+        if isinstance(arg, Token):
+            if arg.type == 'VARIABLE':
+                if arg.value in self.vars:
+                    filename = self.vars.get(arg.value).value
+                else:
+                    raise SyntaxError('Undefined variable %s' % arg.value)
+            else:
+                filename = arg.value
         else:
             filename = arg
 
-        filename = filename.strip('"').strip("'")
+        filename = str(filename).strip('"').strip("'")
         p = Path(filename)
         filename = str(p.resolve())
         return filename
