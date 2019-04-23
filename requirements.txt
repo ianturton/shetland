@@ -1,8 +1,12 @@
 atomicwrites==1.3.0
 attrs==19.1.0
+certifi==2019.3.9
+chardet==3.0.4
+codacy-coverage==1.3.11
 colander==0.9.9
+coverage==4.5.3
 Flask==0.10.1
-GDAL==2.2.3
+idna==2.8
 iso8601==0.1.8
 itsdangerous==1.1.0
 Jinja2==2.10.1
@@ -13,7 +17,10 @@ numpy==1.16.2
 pluggy==0.9.0
 py==1.8.0
 pytest==4.4.0
+pytest-cov==2.6.1
 redis==2.8.0
+requests==2.21.0
 six==1.12.0
 translationstring==1.3
+urllib3==1.24.2
 Werkzeug==0.15.2
