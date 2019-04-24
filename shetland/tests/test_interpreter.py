@@ -94,6 +94,8 @@ class TestInterpreter:
         readline.write_history_file()
         code = """!!"""
         assert self.run(code) is True
-        val = self.interpreter.getHistoryLength() - 2
-        code = "!%d" % val
-        assert self.run(code) is True
+        length = self.interpreter.getHistoryLength()
+        if length > 2:
+            val = length - 2
+            code = "!%d" % val
+            assert self.run(code) is True

@@ -1,5 +1,6 @@
 # Shetland
 
+[![Build Status](https://travis-ci.org/ianturton/shetland.svg?branch=master)](https://travis-ci.org/ianturton/shetland) 
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/1726e839f24548b7b562b387a28dc8f6)](https://app.codacy.com/app/ianturton/shetland?utm_source=github.com&utm_medium=referral&utm_content=ianturton/shetland&utm_campaign=Badge_Grade_Settings)
 
 ## What is Shetland?
