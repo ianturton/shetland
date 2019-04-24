@@ -1,6 +1,6 @@
 !start      : command+ 
 
-!command    : "list" [VARIABLE]
+!command    : (VARIABLE "=")? "list" [VARIABLE]
             | "save" ATOM [ATOM]
             | (VARIABLE "=" ATOM )
             | (VARIABLE "=")? "open" ATOM

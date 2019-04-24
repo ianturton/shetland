@@ -1,5 +1,4 @@
 import os
-
 from pathlib import Path
 import readline
 import atexit
@@ -62,7 +61,7 @@ class Interpreter:
             vals = [vals]
         if len(vals) == 1:
             val = vals[0]
-            print("setting "+name+" to "+val)
+            # print("setting "+name+" to "+val)
             if isinstance(val, Token):
                 if val.type == 'VARIABLE':
                     if val.value in self.vars:
@@ -91,8 +90,7 @@ class Interpreter:
         """
         return readline.get_current_history_length()
 
-    @classmethod
-    def __parseList(cls, token):
+    def __parseList(self, token):
         """
         Break up a list token or a filename with possible
         globbing and return a python list for processing
@@ -111,8 +109,17 @@ class Interpreter:
             p = Path('.')
             list_ = [Token(value=l, type_="FILENAME")
                      for l in list(p.glob(val))]
-        else:  # just a single file?
-            list_ = [Token(value=val, type_="CNAME")]
+        else:  # just a variable or single file?
+            try:
+                v = self.__getVar(val)
+                if isinstance(v, list):
+                    list_ = v[:]
+                else:
+                    list_.append(Token(type_="VARIABLE",
+                                       value=v))
+            except SyntaxError:
+                list_ = [Token(value=val, type_="CNAME")]
+        # print(list_)
         return list_
 
     def run_instruction(self, t):
@@ -299,19 +306,26 @@ class Interpreter:
         layers = sorted(layers, key=lambda x: x.GetName())
         for layer in layers:
             print("Name: %s" % layer.GetName())
-        return True
+        if len(layers) == 0:
+            return False
+        else:
+            return [l.GetName() for l in layers]
 
     def ogr_info(self, *args):
         """
         Get information about the named layer in the current datasource, if
         there is another argument then print the full metadata.
         """
-        layername = args[0].value
+        try:
+            layername = self.__getVar(args[0])
+        except SyntaxError:
+            layername = args[0].value
         full = False
         if len(args) > 1:
             full = True
         layer = self.dataSource.GetLayerByName(layername)
         if layer:
+            print(layername)
             featureCount = layer.GetFeatureCount()
             print("Number of features in  %d" %
                   (featureCount))

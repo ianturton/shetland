@@ -41,7 +41,22 @@ class TestInterpreter:
     def test_list_layers(self):
         code = """open '%s/states.shp'
         list"""
-        assert self.run(code % self.data_path) is True
+        assert self.run(code % self.data_path)
+
+    def test_list_layers_from_var(self):
+        code = """a = open '%s/states.shp'
+        open '%s/states.gpkg'
+        list a"""
+        assert self.run(code % (self.data_path, self.data_path))
+
+    def test_list_layers_to_var(self):
+        code = """
+        a = open '%s/states.gpkg'
+        b = list a
+        for i in b {
+            print i
+        }"""
+        assert self.run(code % (self.data_path))
 
     def test_list_info(self):
         code = """open '%s/states.%s'
@@ -49,6 +64,14 @@ class TestInterpreter:
                   info states"""
         for ext in self.drivers.keys():
             assert self.run(code % (self.data_path, ext)) is True
+
+    def test_list_info_var(self):
+        code = """a = open '%s/states.gpkg'
+                  b = list a
+                  for x in b {
+                    info x
+                  }"""
+        assert self.run(code % (self.data_path)) is True
 
     def test_save(self):
         code = """open '%s/states.shp'
