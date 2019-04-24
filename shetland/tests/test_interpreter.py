@@ -24,8 +24,15 @@ class TestInterpreter:
         code = "open '%s/states.%s'"
         for ext in self.drivers.keys():
             c = code % (self.data_path, ext)
-            print("testing "+c)
-            assert self.run(c) is True
+            assert self.run(c)
+
+    def test_open_to_var(self):
+        code = """a = open '%s/states.shp'
+        print a
+        """
+        result = self.run(code % (self.data_path))
+        print(self.interpreter.vars['a'])
+        assert result is True
 
     def test_open_missing_shp(self):
         for ext in self.drivers.keys():

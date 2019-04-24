@@ -6,6 +6,7 @@ import atexit
 from .completer import Completer
 from lark import Lark, UnexpectedInput
 from lark.lexer import Token
+from lark.tree import Tree
 from osgeo import ogr, gdal
 
 
@@ -53,25 +54,33 @@ class Interpreter:
         # readline.set_completer_delims(' \t\n;')
         readline.parse_and_bind("tab: complete")
 
-    def assignVar(self, name, val):
+    def assignVar(self, name, vals):
         """
         Assign a value to a variable
         """
-        print("setting "+name+" to "+val)
-        if isinstance(val, Token):
-            if val.type == 'VARIABLE':
-                if val.value in self.vars:
-                    ret = self.vars.get(val.value)
-                else:
-                    raise SyntaxError('Undefined variable %s' % val.value)
-            elif val.type in ('ATOM', 'FILENAME', 'CNAME'):
-                ret = self.__getFileName(val)
-        # elif isinstance(val, Tree):
-            # process the tree and store the result in the var
-            # ret = self.run_instruction(val)
+        if not isinstance(vals, list):
+            vals = [vals]
+        if len(vals) == 1:
+            val = vals[0]
+            print("setting "+name+" to "+val)
+            if isinstance(val, Token):
+                if val.type == 'VARIABLE':
+                    if val.value in self.vars:
+                        ret = self.vars.get(val.value)
+                    else:
+                        raise SyntaxError('Undefined variable %s' % val.value)
+                elif val.type in ('ATOM', 'FILENAME', 'CNAME'):
+                    ret = self.__getFileName(val)
+            # elif isinstance(val, Tree):
+                # process the tree and store the result in the var
+                # ret = self.run_instruction(val)
 
+            else:
+                ret = val
         else:
-            ret = val
+            # process the tree and store the result in the var
+            tree = Tree('command', vals)
+            ret = self.run_instruction(tree)
 
         self.vars[name] = ret
 
@@ -117,7 +126,7 @@ class Interpreter:
             # for i, c in enumerate(args):
             # print(str(i)+" arg: "+c+" "+c.type)
             if (args[0].type == 'VARIABLE'):
-                self.assignVar(args[0].value, args[2])  # skip =
+                self.assignVar(args[0].value, args[2:])  # skip =
                 return True
 
             if(len(args) >= 2):  # commands with filename
@@ -126,6 +135,7 @@ class Interpreter:
                     'save': self.ogr_save,
                     'info': self.ogr_info,
                     'print': self.print_,
+                    'list': self.ogr_list,
                 }[args[0]](*args[1:])
             else:
                 res = {
@@ -179,8 +189,9 @@ class Interpreter:
         execute it.
         TODO: implement '!prefix'
         """
-        if(args[0] == "last"):
-            val = readline.get_current_history_length() - 2  # last cmd
+        length = readline.get_current_history_length()
+        if(args[0] == "last" and length > 2):
+            val = length - 2  # last cmd
         else:
             val = int(args[0].value)
         cmd = readline.get_history_item(val)
@@ -215,6 +226,26 @@ class Interpreter:
                 print(arg)
         return True
 
+    def __getVar(self, arg):
+        """
+        Look up the variable stored in arg and return it
+        """
+        if isinstance(arg, Token):
+            if arg.value in self.vars:
+                v = self.vars.get(arg.value)
+            else:
+                raise SyntaxError('Undefined variable %s' % arg.value)
+        else:
+            if arg in self.vars:
+                v = self.vars.get(arg)
+                print(v)
+            else:
+                raise SyntaxError('Undefined variable %s' % arg)
+        if isinstance(v, Token):
+            return v.value
+        else:
+            return v
+
     def __getFileName(self, arg):
         """
         Gets a filename from a token id if it is a variable,
@@ -248,17 +279,22 @@ class Interpreter:
         else:
             print('Opened %s' % (filename))
             self.filename = filename
-            return True
+            return self.dataSource
 
-    def ogr_list(self):
+    def ogr_list(self, arg=None):
         """
         List the layers in the current datasource
         """
-        count = self.dataSource.GetLayerCount()
+        if arg:
+            ds = self.__getVar(arg)
+        else:
+            ds = self.dataSource
+
+        count = ds.GetLayerCount()
         print("%d layers" % count)
         layers = []
         for i in range(count):
-            layer = self.dataSource.GetLayerByIndex(i)
+            layer = ds.GetLayerByIndex(i)
             layers.append(layer)
         layers = sorted(layers, key=lambda x: x.GetName())
         for layer in layers:
