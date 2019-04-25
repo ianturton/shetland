@@ -53,6 +53,47 @@ class Interpreter:
         # readline.set_completer_delims(' \t\n;')
         readline.parse_and_bind("tab: complete")
 
+    def run_instruction(self, t):
+        """
+        Main entry point to the interpreter, takes a tree of
+        Tokens from the parser and carries out the instructions
+        """
+        # print(t)
+        args = t.children
+        if t.data == 'command':
+            # for i, c in enumerate(args):
+            # print(str(i)+" arg: "+c+" "+c.type)
+            if (args[0].type == 'VARIABLE'):
+                self.assignVar(args[0].value, args[2:])  # skip =
+                return True
+
+            if(len(args) >= 2):  # commands with filename
+                res = {
+                    'open': self.ogr_open,
+                    'save': self.ogr_save,
+                    'info': self.ogr_info,
+                    'print': self.print_,
+                    'list': self.ogr_list,
+                    'copy': self.ogr_copy,
+                }[args[0]](*args[1:])
+            else:
+                res = {
+                    'list': self.ogr_list,
+                    'history': self.history,
+                }[args[0]]()
+        elif t.data == 'exec':
+            res = self.exec_hist(args[1])
+        elif t.data == 'repeat_hist':
+            res = self.exec_hist("last")
+        elif t.data == 'for':
+            res = self.__do_for(args)
+        elif t.data == 'code_block':
+            for cmd in t.children:
+                res = self.run_instruction(cmd)
+        else:
+            raise SyntaxError('Unknown instruction: %s' % t.data)
+        return res
+
     def assignVar(self, name, vals):
         """
         Assign a value to a variable
@@ -121,46 +162,6 @@ class Interpreter:
                 list_ = [Token(value=val, type_="CNAME")]
         # print(list_)
         return list_
-
-    def run_instruction(self, t):
-        """
-        Main entry point to the interpreter, takes a tree of
-        Tokens from the parser and carries out the instructions
-        """
-        # print(t)
-        args = t.children
-        if t.data == 'command':
-            # for i, c in enumerate(args):
-            # print(str(i)+" arg: "+c+" "+c.type)
-            if (args[0].type == 'VARIABLE'):
-                self.assignVar(args[0].value, args[2:])  # skip =
-                return True
-
-            if(len(args) >= 2):  # commands with filename
-                res = {
-                    'open': self.ogr_open,
-                    'save': self.ogr_save,
-                    'info': self.ogr_info,
-                    'print': self.print_,
-                    'list': self.ogr_list,
-                }[args[0]](*args[1:])
-            else:
-                res = {
-                    'list': self.ogr_list,
-                    'history': self.history,
-                }[args[0]]()
-        elif t.data == 'exec':
-            res = self.exec_hist(args[1])
-        elif t.data == 'repeat_hist':
-            res = self.exec_hist("last")
-        elif t.data == 'for':
-            res = self.__do_for(args)
-        elif t.data == 'code_block':
-            for cmd in t.children:
-                res = self.run_instruction(cmd)
-        else:
-            raise SyntaxError('Unknown instruction: %s' % t.data)
-        return res
 
     def __do_for(self, arg):
         """
@@ -287,6 +288,50 @@ class Interpreter:
             print('Opened %s' % (filename))
             self.filename = filename
             return self.dataSource
+
+    def is_var(self, arg):
+        return arg in self.vars
+
+    def ogr_copy(self, *args):
+        infilename = self.__getFileName(args[0])
+        if self.is_var(args[1]):
+            layername = self.__getVar(args[1])
+        else:
+            layername = args[1]
+        # arg[2] is "to"
+        outfilename = self.__getFileName(args[3])
+        if len(args) > 4:
+            if self.is_var(args[4]):
+                outlayername = self.__getVar(args[4])
+            else:
+                outlayername = args[4]
+        else:
+            outlayername = layername
+
+        indataSource = ogr.Open(infilename, 0)
+        if indataSource is None:
+            raise IOError("Could not open %s" % (infilename))
+
+        idx = outfilename.rfind(".")
+        ext = outfilename[idx + 1:]
+
+        # look up driver type based on extension
+        driverName = self.drivers.get(ext)
+        if not driverName:
+            raise IOError("Unable to find a driver for file '%s'" % ext)
+
+        drv = ogr.GetDriverByName(driverName)
+        if os.path.exists(outfilename):
+            drv.DeleteDataSource(outfilename)
+
+        outdatasource = drv.CreateDataSource(outfilename)
+        if outdatasource is not None:
+            inlayer = indataSource.GetLayerByName(layername)
+            outdatasource.CopyLayer(inlayer, new_name=outlayername)
+            outdatasource = None  # save!
+            return True
+        else:
+            return False
 
     def ogr_list(self, arg=None):
         """

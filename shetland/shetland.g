@@ -1,10 +1,10 @@
 !start      : command+ 
 
 !command    : (VARIABLE "=")? "list" [VARIABLE]
+            | "copy" ATOM ATOM "to" ATOM [ATOM]
             | "save" ATOM [ATOM]
             | (VARIABLE "=" ATOM )
             | (VARIABLE "=")? "open" ATOM
-            | (VARIABLE "=")? "layer" ATOM
             | "info" ATOM+
             | "print" VARIABLE
             | "history"

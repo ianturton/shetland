@@ -1,5 +1,7 @@
 import pytest
+import tempfile
 import os
+import shutil
 from shetland.interpreter import Interpreter
 import lark
 
@@ -14,6 +16,11 @@ class TestInterpreter:
         self.run = self.interpreter.run
         self.data_path = os.path.normpath(
             os.path.join(self.THIS_DIR, os.pardir, 'tests/data/'))
+        self.out_path = os.path.normpath(tempfile.mkdtemp(
+            prefix="shetland"))
+
+    def teardown_method(self, method):
+        shutil.rmtree(self.out_path)
 
     def test_unknown(self):
         with pytest.raises(lark.exceptions.ParseError):
@@ -21,6 +28,12 @@ class TestInterpreter:
 
     def test_open(self):
         code = "open '%s/states.%s'"
+        for ext in self.drivers.keys():
+            c = code % (self.data_path, ext)
+            assert self.run(c)
+
+    def test_open_no_quote(self):
+        code = "open %s/states.%s"
         for ext in self.drivers.keys():
             c = code % (self.data_path, ext)
             assert self.run(c)
@@ -75,9 +88,9 @@ class TestInterpreter:
 
     def test_save(self):
         code = """open '%s/states.shp'
-            save '/tmp/ian.shp' states
+            save '%s/ian.shp' states
             """
-        assert self.run(code % self.data_path) is True
+        assert self.run(code % (self.data_path, self.out_path)) is True
 
     def test_variables(self):
         code = """a=/tmp/ian.shp"""
@@ -114,3 +127,12 @@ class TestInterpreter:
         }
         """
         assert self.run(code) is True
+
+    def test_simple_copy(self):
+        code = "copy %s/states.shp states to %s/copy1.shp"
+        assert self.run(code % (self.data_path, self.out_path)) is True
+        code = """open %s/copy1.shp
+        list
+        info copy1 full
+        """
+        assert self.run(code % (self.out_path)) is True
